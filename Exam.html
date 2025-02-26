@@ -1,21 +1,39 @@
-<!DOCTYPE html> 
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Full-Screen Assessment</title>
+    <meta name="apple-mobile-web-app-capable" content="yes">
     <style>
         body, html { margin: 0; padding: 0; width: 100vw; height: 100vh; overflow: hidden; font-family: Arial, sans-serif; }
-        #startScreen, #examContent { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; text-align: center; }
-        #examContent { display: none; width: 100vw; height: 100vh; overflow: hidden; position: relative; }
-        #submitExam { position: fixed; top: 20px; right: 20px; background: #d9534f; color: white; padding: 12px 20px; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; }
+        #formScreen, #startScreen, #examContent { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; text-align: center; }
+        #startScreen, #examContent { display: none; }
+        #examContent { width: 100vw; height: 100vh; overflow: hidden; position: relative; }
+        #submitExam { position: fixed; top: 20px; left: 20px; background: #d9534f; color: white; padding: 12px 20px; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; }
         #submitExam:hover { background: #c9302c; }
     </style>
     <script>
         let assessmentStarted = false;
+        let userAgent = navigator.userAgent;
+        let isIos = /iPad|iPhone|iPod/.test(userAgent) && !window.MSStream;
+        let isChromeOnIos = /CriOS/.test(userAgent);
+
+        function submitConfirmationForm() {
+            alert("✅ Confirmation Form Submitted!");
+            sessionStorage.setItem("confirmationDone", "true");
+            document.getElementById("formScreen").style.display = "none";
+            document.getElementById("startScreen").style.display = "flex";
+        }
 
         function openFullscreen() {
             let elem = document.documentElement;
+            
+            if (isChromeOnIos) {
+                alert("⚠️ Full-screen mode is not supported in Chrome on iPhone. Please use Safari and 'Add to Home Screen' for the best experience.");
+                return;
+            }
+
             if (elem.requestFullscreen) {
                 elem.requestFullscreen();
             } else if (elem.mozRequestFullScreen) { 
@@ -24,6 +42,9 @@
                 elem.webkitRequestFullscreen();
             } else if (elem.msRequestFullscreen) { 
                 elem.msRequestFullscreen();
+            } else {
+                alert("⚠️ Your browser does not support full-screen mode.");
+                return;
             }
 
             document.getElementById("startScreen").style.display = "none";
@@ -37,16 +58,30 @@
 
         function enforceFullScreen() {
             setInterval(() => {
-                if (!document.fullscreenElement) {
-                    alert("You must stay in full-screen mode! Your session is now terminated.");
+                if (!document.fullscreenElement && !isIos) {
+                    alert("⚠️ Full-screen mode is required. Your session is now terminated.");
                     terminateSession();
                 }
             }, 1000);
         }
 
+        document.addEventListener("fullscreenchange", function() {
+            if (!document.fullscreenElement && assessmentStarted) {
+                alert("⚠️ Full-screen mode is required. Your session is now terminated.");
+                terminateSession();
+            }
+        });
+
+        document.addEventListener("visibilitychange", function() {
+            if (document.hidden && assessmentStarted) {
+                alert("⚠️ Switching tabs or leaving the page is not allowed. Your session is now terminated.");
+                terminateSession();
+            }
+        });
+
         function terminateSession() {
             sessionStorage.setItem("examExited", "true");
-            window.location.href = "https://kcetcoe.com/session-expired"; // Change to your exit page
+            window.location.href = "https://kcetcoe.com/session-expired"; 
         }
 
         function checkReEntry() {
@@ -56,32 +91,49 @@
         }
 
         function handleFormSubmit() {
-            alert("Assessment submitted! Closing session...");
+            alert("✅ Assessment submitted! Closing session...");
             sessionStorage.setItem("examExited", "true");
             setTimeout(() => {
-                document.exitFullscreen();
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                }
                 window.location.href = "https://kcetcoe.com/assessment-completed";
             }, 1000);
         }
 
+        function checkConfirmation() {
+            if (sessionStorage.getItem("confirmationDone") === "true") {
+                document.getElementById("formScreen").style.display = "none";
+                document.getElementById("startScreen").style.display = "flex";
+            }
+        }
+
         window.onload = function() {
             checkReEntry();
+            checkConfirmation();
         };
     </script>
 </head>
 <body>
-    <!-- Start Screen -->
+
+    <!-- Confirmation Form -->
+    <div id="formScreen">
+        <h2>Before starting, please confirm your details</h2>
+        <iframe src="https://forms.office.com/r/q4zhzvJmdh" width="100%" height="70%" style="border: none;"></iframe>
+        <button onclick="submitConfirmationForm();" style="padding: 10px 20px; font-size: 18px; margin-top: 20px;">Submit Confirmation</button>
+    </div>
+
+    <!-- Confirmation Message & Start Button -->
     <div id="startScreen">
-        <h2>Click the button below to start the assessment in full-screen mode</h2>
+        <h2>✅ Confirmation received! You may now start the assessment.</h2>
         <button onclick="openFullscreen();" style="padding: 10px 20px; font-size: 18px;">Start Assessment</button>
     </div>
 
-    <!-- Exam Content (Hidden Initially) -->
+    <!-- Exam Content -->
     <div id="examContent">
         <iframe src="https://forms.office.com/r/arG4MR4UUq" width="100%" height="90%" style="border: none;"></iframe>
         <button id="submitExam" onclick="handleFormSubmit()">Submit Exam</button>
     </div>
+
 </body>
 </html>
-
-       
